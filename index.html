@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlas de Ciudades Perdidas</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-neutral-900 text-stone-800 font-serif flex flex-col items-center px-4 py-10">
+
+ <header class="text-center max-w-xl mb-6">
+  <div class="font-mono text-xs tracking-[0.3em] uppercase text-amber-100/60 mb-3">Cartografía perdida</div>
+  <h1 class="text-4xl md:text-5xl text-amber-100 mb-2">Atlas de Ciudades Perdidas</h1>
+  <p class="italic text-amber-100/60">Pulsa el sello para generar una ciudad que desapareció hace mucho tiempo: su nombre, dónde estaba y por qué ya no existe.</p>
+</header>
+
+<main id="sheet" class="w-full max-w-[600px] bg-[url('https://www.sketchuptextureclub.com/public/texture_m/0047-old-parchment-paper-texture-seamless.jpg')] bg-cover bg-center bg-no-repeat border border-black/20 rounded-lg shadow-2xl p-8">
+    <div class="flex justify-between font-mono text-[11px] text-stone-700/75 mb-3">
+      <span id="coordLeft">LAT — · LONG —</span>
+      <span id="coordRight">FOLIO Nº ——</span>
+    </div>
+                                                                                                                     
+                             
+    <div class="w-4/5 mx-auto rounded overflow-hidden shadow-md mb-1">
+      <svg id="worldmap" viewBox="0 0 599 424" xmlns="http://www.w3.org/2000/svg" class="block w-full h-auto">
+        <image href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfZynoY-KrW3300_zTGHEoBadi-qERt8BolQF9CWnJYA&s=10" x="0" y="0" width="599" height="424"/>
+
+        <!-- Etiquetas de continentes, siempre visibles -->
+        <g class="font-mono text-[12px] fill-stone-700/80">
+          <text x="245" y="175" text-anchor="middle">EUROPA</text>
+          <text x="490" y="215" text-anchor="middle">ASIA</text>
+          <text x="270" y="270" text-anchor="middle">ÁFRICA</text>
+          <text x="90" y="275" text-anchor="middle">AMÉRICA</text>
+          <text x="500" y="345" text-anchor="middle">OCEANÍA</text>
+        </g>
+
+        <!-- El marcador (waypoint) que indica dónde estuvo la ciudad -->
+        <g id="pinGroup" transform="translate(310,180)">
+          <circle r="16" class="fill-red-900/10 stroke-red-900" stroke-width="1.4" style="stroke-dasharray:3 4"/>
+          <path d="M-6,-6 L6,6 M-6,6 L6,-6" class="stroke-red-900" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+          <circle r="2" class="fill-red-900"/>
+        </g>
+      </svg>
+    </div>
+    <p id="mapCaption" class="text-center font-mono text-[10px] tracking-wider uppercase text-stone-600/70 mb-5">Mapa mundial</p>
+
+    <!-- Aquí se escribe el nombre, la fecha y la leyenda de la ciudad generada -->
+    <div id="stage" class="min-h-[170px] flex flex-col items-center justify-center text-center py-2 pb-5">
+      <p class="italic text-stone-600/70 max-w-xs">El pergamino aún está en blanco. Pulsa el sello para revelar una ciudad perdida.</p>
+    </div>
+
+    <div class="flex justify-center gap-3 flex-wrap">
+      <button id="revealBtn" class="font-serif text-white rounded-full px-8 py-5 bg-gradient-to-br from-red-800 to-red-950 shadow-lg hover:-translate-y-0.5 transition">Revelar ciudad perdida</button>
+      <button id="againBtn" hidden class="border border-black/20 rounded px-5 py-2 hover:bg-black/5 transition">Otra más</button>
+    </div>
+  </main>
+
+  <footer class="mt-7 font-mono text-[11px] text-stone-500 text-center">
+  <span>Nombres, mapa y leyendas generados buscando entre la historia.</span><br>
+  <span>Ninguna de estas ciudades existió (bueno... por ahi tal vez llego a existir una quien lo sabra).</span>
+</footer>
+
+  <script>
+/* ==========================================================================
+   ATLAS DE CIUDADES PERDIDAS
+   Cada vez que pulsas el botón:
+     1. Elige una época de la historia.
+     2. Inventa un nombre de ciudad combinando trozos de palabras.
+     3. Elige un motivo de desaparición (sin repetir el mismo dos veces seguidas).
+     4. Elige un lugar en el mapa: en tierra normalmente, en el agua si el
+        motivo tiene que ver con el mar.
+   ========================================================================== */
+
+const TXT_FOUNDED = "Fundada";
+const TXT_DISAPPEARED = "Desaparecida";
+const TXT_REGION = "Región";
+const TXT_REVEAL_AGAIN = "Revelar otra ciudad";
+
+
+const ERAS = {
+  antiguo: { caption: "Orbis Terrarum · el mundo conocido en la Antigüedad", yMin: -800, yMax: 100, spanMin: 15, spanMax: 220 },
+  medieval: { caption: "Mappa Mundi · el mundo según los códices medievales", yMin: 150, yMax: 1400, spanMin: 20, spanMax: 260 },
+  exploracion: { caption: "Carta de navegación · la era de los grandes descubrimientos", yMin: 1420, yMax: 1700, spanMin: 12, spanMax: 160 },
+  moderno: { caption: "Mapa mundial · cartografía moderna", yMin: 1720, yMax: 1930, spanMin: 8, spanMax: 130 }
+};
+const ERA_KEYS = Object.keys(ERAS);
+
+function formatYear(year, eraKey){
+  if (eraKey === "antiguo"){
+    return year < 0 ? `${Math.round(-year)} a.C.` : `${Math.round(year)} d.C.`;
+  }
+  return `${Math.round(year)}`;
+}
+
+const NAME_BANKS = {
+  antiguo: {
+    roots1: ["Ur","Nin","Kar","Sar","Ebl","Menf","Ath","Tir","Byb","Ass","Ekb","Mit"],
+    roots2: ["assur","apolis","ebla","ugar","menfis","kadesh","tanis","biblos"],
+    suffixes: ["a","um","assa","polis","ash","ur","on"],
+    honorifics: []
+  },
+  medieval: {
+    roots1: ["Al","Bel","Cor","Dun","Eir","Fal","Gor","Har","Jor","Lor","Mor","Val"],
+    roots2: ["ban","cael","dor","fara","gost","havel","mira","noc","tira","vela"],
+    suffixes: ["ia","ar","eth","or","ada","oth","ura","ellón"],
+    honorifics: ["San ","Santa ","Villa ","Puerto ","Monte "]
+  },
+  exploracion: {
+    roots1: ["Al","Cor","Dun","Fal","Gor","Har","Jor","Lor","Mor","Ral","Sil","Val"],
+    roots2: ["ban","dor","fara","luma","mira","rethe","suma","vela"],
+    suffixes: ["ia","ar","eth","or","ez","ura","esca","ux"],
+    honorifics: ["San ","Santa ","Puerto ","Nueva ","Fuerte ","Villa "]
+  },
+  moderno: {
+    roots1: ["Bel","Cor","Dun","Fal","Gor","Har","Jor","Kel","Lor","Mor","Tor","Wen"],
+    roots2: ["cael","dor","gost","havel","luma","mira","noc","suma"],
+    suffixes: ["ia","ar","eth","or","ez","ada","oth","onte"],
+    honorifics: ["Nueva ","Puerto ","Colonia ","Fuerte ","San "]
+  }
+};
+
+function pick(list){ return list[Math.floor(Math.random() * list.length)]; }
+function capitalize(word){ return word.charAt(0).toUpperCase() + word.slice(1); }
+
+function generateName(eraKey){
+  const bank = NAME_BANKS[eraKey];
+  const roll = Math.random();
+  let name;
+  if (roll < 0.4){
+    name = pick(bank.roots1).toLowerCase() + pick(bank.roots2);
+  } else if (roll < 0.75){
+    name = pick(bank.roots1).toLowerCase() + pick(bank.suffixes);
+  } else {
+    name = pick(bank.roots1).toLowerCase() + pick(bank.roots2) + pick(bank.suffixes);
+  }
+  name = capitalize(name);
+  const useHonorific = bank.honorifics.length > 0 && Math.random() < 0.3;
+  return useHonorific ? pick(bank.honorifics) + name : name;
+}
+
+const CAUSES = {
+  antiguo: [
+    { tag:"Tragada por la arena", text:c=>`Las caravanas que pasaban cerca de ${c} la recordaban como un cruce de caminos próspero. Con los años, las dunas del desierto avanzaron sobre sus murallas de adobe hasta sepultarla sin dejar ni un rastro.` },
+    { tag:"Sacudida por la tierra", text:c=>`Un temblor abrió un monton de grietas en las columnas de piedra de ${c} y desaparecio su plaza principal en una sola noche; los supervivientes no volvieron a construir sobre ese suelo.` },
+    { tag:"Diezmada por la enfermedad", text:c=>`Una enfermedad sin nombre recorrió ${c} en apenas dos meses. Los que sobrevivieron quemaron sus casas y se marcharon para nunca volver.` },
+    { tag:"Arrasada por la guerra", text:c=>`Tras ser robada por un ejército rival, las piedras de ${c} fueron llevadas para construir los muros de otra ciudad, y su nombre se perdió en el olvido.` },
+    { tag:"Vaciada por la sequía", text:c=>`Cuando el rio que alimentaba los campos de ${c} se secó durante varias cosechas seguidas, sus habitantes se fueron en busca de tierra fértil y jamas regresaron.` },
+    { tag:"Abandonada por presagio", text:c=>`Los antiguos sacerdotes romanos leyeron el vuelo de las aves sobre los templos de ${c} como un anuncio de muerte, y la población entera partió antes del siguiente equinoccio.` },
+    { tag:"Consumida por el fuego", text:c=>`Un incendio que comenzó en los graneros de ${c} detruyo las casas de madera antes de que nadie pudiera apagarlo.` },
+    { tag:"Sepultada bajo las olas", maritime:true, text:c=>`El puerto de ${c} prosperó durante generaciones gracias a su bahía tranquila. Pero la costa fue hundiéndose lentamente año tras año, hasta que el mar terminó cubriendo sus muelles y sus calles enteras desapareciendola por completo.` }
+  ],
+  medieval: [
+    { tag:"Vaciada por la peste", text:c=>`Cuando la peste llegó a ${c}, se llevó a la mayoría de sus habitantes en menos de un año. Los pocos que sobrevivieron se fueron a aldeas vecinas y nunca volvieron.` },
+    { tag:"Rendida al asedio", text:c=>`Tras semanas de asedio por las tropas de un señor rival, las murallas de ${c} cedieron. Sus habitantes fueron dispersados entre los feudos cercanos y la villa quedó en ruinas.` },
+    { tag:"Consumida por el fuego", text:c=>`Un incendio que comenzó en los tejados de paja de ${c} se propagó antes de que los vecinos pudieran contenerlo. Se reconstruyó a medias una vez; a la segunda, nadie regresó.` },
+    { tag:"Vaciada por el hambre", text:c=>`Varias malas cosechas seguidas dejaron a ${c} sin grano para el invierno. Familia tras familia, sus habitantes emigraron hacia tierras con mejor cosecha.` },
+    { tag:"Sacudida por la tierra", text:c=>`Un temblor derrumbó la iglesia y buena parte de las casas de ${c}. Sin señor que financiara la reconstrucción, sus habitantes se fueron y no volvieron.` },
+    { tag:"Disuelta en el silencio", text:c=>`Los registros de los monjes copistas mencionan a ${c} habitada un año, y vacía al siguiente. Ningún cronista explicó por qué se marcharon.` },
+    { tag:"Arrasada por bandidos", text:c=>`Una banda de asaltantes atacó ${c} durante varios inviernos seguidos, llevándose el ganado y el grano guardado. Al tercer saqueo, ya no quedaba nada que proteger.` },
+    { tag:"Tragada por el mar", maritime:true, text:c=>`Tormenta tras tormenta, el mar fue comiéndose la costa donde se asentaba ${c}. Los pescadores más viejos recuerdan haber visto, en mareas muy bajas, los cimientos de las últimas casas.` }
+  ],
+  exploracion: [
+    { tag:"Diezmada por la fiebre", text:c=>`Una fiebre tropical llegada en uno de los barcos que abastecían a ${c} se propagó por el puerto en pocas semanas, y los pocos supervivientes optaron por no reconstruir el asentamiento.` },
+    { tag:"Saqueada por corsarios", maritime:true, text:c=>`Corsarios asaltaron ${c} más de una vez, hasta que sus almacenes y muelles quedaron demasiado dañados para justificar una nueva reconstrucción.` },
+    { tag:"Destruida por la tormenta", maritime:true, text:c=>`Un huracan hundió a los galeones anclados frente a ${c} y arrasó sus muelles de madera. Sin barcos que la abastecieran, la colonia fue abandonada al año siguiente.` },
+    { tag:"Cerrada por la compañía", text:c=>`Cuando la compañía comercial que sostenía a ${c} decidió que la ruta ya no era rentable, retiró a sus empleados y la colonia quedó deshabitada en cuestión de meses.` },
+    { tag:"Tragada por el maremoto", maritime:true, text:c=>`Un maremoto arrasó el puerto de ${c} en cuestión de minutos. Los planos que se conservan muestran calles que hoy están varios metros bajo el nivel del mar.` },
+    { tag:"Abandonada tras el naufragio", maritime:true, text:c=>`Tras perderse el barco que traía cada mes los suministros para ${c}, la colonia no logró sobrevivir al invierno por su cuenta.` },
+    { tag:"Arruinada por la mina agotada", text:c=>`${c} se sostenía gracias a una veta de plata que los ingenieros coloniales explotaron sin descanso. Cuando la plata se agotó, no quedó ninguna razón para seguir viviendo allí.` },
+    { tag:"Perdida en la niebla", maritime:true, text:c=>`Ningún barco volvió a encontrar la entrada al puerto de ${c} después de que un banco de arena cambiara de lugar. Sin ruta segura, la colonia quedó aislada hasta que se apagó por sí sola.` }
+  ],
+  moderno: [
+    { tag:"Cerrada al agotarse la mina", text:c=>`${c} creció alrededor de un yacimiento mineral. Cuando el oro se agotó, la compañía cerró la mina y la mayoría de las familias se mudó en menos de dos años.` },
+    { tag:"Dejada atrás por el ferrocarril", text:c=>`Cuando la línea de ferrocarril se trazó varios kilómetros al norte de ${c}, el comercio se desplazó con ella. Sin la parada del tren, la localidad fue perdiendo población década tras década.` },
+    { tag:"Golpeada por el cólera", text:c=>`Un brote de cólera, propagado por el agua contaminada, redujo a la mitad la población de ${c} en un solo verano. Los registros sanitarios recomendaron no repoblar la zona.` },
+    { tag:"Reducida por la guerra", text:c=>`Los combates de artillería que pasaron por ${c} durante la guerra dejaron en pie menos de un tercio de sus edificios. Nadie encontró motivo para reconstruir sobre los escombros.` },
+    { tag:"Vaciada por el éxodo rural", text:c=>`Generación tras generación, los jóvenes de ${c} partieron hacia la ciudad en busca de trabajo en las nuevas fábricas, hasta que solo quedaron unas pocas casas habitadas por los mayores, cuando fallecieron ya nadie volvio a pisar sus calles.` },
+    { tag:"Consumida por el incendio industrial", text:c=>`Un incendio en la fábrica que empleaba a la mayoría de ${c} destruyó tanto el trabajo como buena parte del pueblo. Sin la fábrica, no hubo razón para quedarse.` },
+    { tag:"Desplazada por la carretera", text:c=>`Cuando la nueva autopista se trazó evitando ${c} por completo, los comercios que vivían del paso de viajeros cerraron uno tras otro en apenas dos años.` },
+    { tag:"Erosionada por el mar", maritime:true, text:c=>`Año tras año, las tormentas fueron desmoronando el acantilado sobre el que se asentaba ${c}. Las autoridades terminaron por declarar la zona inhabitable y trasladaron a los últimos vecinos tierra adentro.` }
+  ]
+};
+
+const lastCauseByEra = {};
+function pickCause(eraKey){
+  const list = CAUSES[eraKey];
+  let choice = pick(list);
+  let tries = 0;
+  while (choice.tag === lastCauseByEra[eraKey] && tries < 8){
+    choice = pick(list);
+    tries++;
+  }
+  lastCauseByEra[eraKey] = choice.tag;
+  return choice;
+}
+
+// Puntos de tierra y de agua, elegidos a mano mirando el mapa (calibrados
+// para la imagen de 599x424 que se usa como fondo).
+const CANVAS_W = 599, CANVAS_H = 424;
+
+const REGIONS = [
+  { name:"Europa", zoom:75, group:"oldworld",
+    land:[{x:335,y:150},{x:320,y:170}], water:[{x:270,y:140},{x:335,y:115}] },
+  { name:"norte de África", zoom:80, group:"oldworld",
+    land:[{x:290,y:225},{x:315,y:235}], water:[{x:260,y:230},{x:300,y:200}] },
+  { name:"África subsahariana", zoom:110, group:"oldworld",
+    land:[{x:300,y:280},{x:275,y:235}], water:[{x:280,y:250},{x:335,y:290}] },
+  { name:"Oriente Próximo", zoom:65, group:"oldworld",
+    land:[{x:368,y:190},{x:388,y:175}], water:[{x:350,y:230}] },
+  { name:"Asia central", zoom:85, group:"oldworld",
+    land:[{x:380,y:180},{x:370,y:190}], water:[] },
+  { name:"la India", zoom:75, group:"oldworld",
+    land:[{x:412,y:200},{x:422,y:192}], water:[{x:420,y:230},{x:440,y:268}] },
+  { name:"Asia oriental", zoom:90, group:"oldworld",
+    land:[{x:428,y:190},{x:498,y:158}], water:[{x:525,y:130},{x:530,y:158}] },
+  { name:"el sudeste asiático", zoom:75, group:"oldworld",
+    land:[{x:462,y:252},{x:478,y:265}], water:[{x:448,y:280},{x:505,y:268}] },
+  { name:"América del Norte", zoom:105, group:"americas",
+    land:[{x:70,y:135},{x:105,y:165}], water:[{x:30,y:160},{x:155,y:165}] },
+  { name:"América Central", zoom:62, group:"americas",
+    land:[{x:138,y:222},{x:146,y:232}], water:[{x:118,y:232},{x:158,y:232}] },
+  { name:"América del Sur", zoom:105, group:"americas",
+    land:[{x:172,y:270},{x:178,y:325}], water:[{x:138,y:288},{x:222,y:278}] },
+  { name:"Oceanía", zoom:80, group:"australia",
+    land:[{x:508,y:322},{x:526,y:332}], water:[{x:480,y:332},{x:552,y:318}] }
+];
+
+function regionsForEra(eraKey){
+  if (eraKey === "antiguo" || eraKey === "medieval"){
+    return REGIONS.filter(r => r.group === "oldworld");
+  }
+  if (eraKey === "exploracion"){
+    return REGIONS.filter(r => r.group !== "australia");
+  }
+  return REGIONS;
+}
+
+function pickPointInRegion(region, wantsWater){
+  const usableWater = wantsWater && region.water.length > 0;
+  const list = usableWater ? region.water : region.land;
+  const base = pick(list);
+  const jitter = () => (Math.random() - 0.5) * 10;
+  return { x: base.x + jitter(), y: base.y + jitter(), name: region.name, zoom: region.zoom };
+}
+
+function computeViewBox(px, py, halfHeight){
+  const h = halfHeight * 2;
+  const w = h * (CANVAS_W / CANVAS_H); // respeta la proporción real de la imagen
+  let x0 = px - w / 2;
+  let y0 = py - h / 2;
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x0 + w > CANVAS_W) x0 = CANVAS_W - w;
+  if (y0 + h > CANVAS_H) y0 = CANVAS_H - h;
+  return `${Math.max(0, x0).toFixed(1)} ${Math.max(0, y0).toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`;
+}
+
+function xyToLatLon(x, y){
+  const lon = (x / CANVAS_W) * 360 - 180;
+  const lat = 90 - (y / CANVAS_H) * 180;
+  const latDir = lat >= 0 ? "N" : "S";
+  const lonDir = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(1)}°${latDir} · ${Math.abs(lon).toFixed(1)}°${lonDir}`;
+}
+
+function randomFolio(){
+  return String(Math.floor(Math.random() * 899) + 100) + "-" + pick(["A","B","C","D"]);
+}
+
+const stage = document.getElementById('stage');
+const sheet = document.getElementById('sheet');
+const revealBtn = document.getElementById('revealBtn');
+const againBtn = document.getElementById('againBtn');
+const coordLeft = document.getElementById('coordLeft');
+const coordRight = document.getElementById('coordRight');
+const worldmap = document.getElementById('worldmap');
+const pinGroup = document.getElementById('pinGroup');
+const mapCaption = document.getElementById('mapCaption');
+
+function showCity({ cityName, y1, y2, regionName, legendText, causeTag, px, py, zoom, caption, credit }){
+  pinGroup.setAttribute('transform', `translate(${px.toFixed(1)},${py.toFixed(1)})`);
+  worldmap.setAttribute('viewBox', computeViewBox(px, py, zoom));
+  mapCaption.textContent = caption;
+
+  stage.innerHTML = `
+    <h2 class="city-name font-serif text-3xl text-red-950 mb-1">${cityName}</h2>
+    <div class="city-meta font-mono text-[11px] text-stone-700 uppercase mb-4 flex gap-4 flex-wrap justify-center">
+     <span>${TXT_FOUNDED} <b class="text-emerald-800">${y1}</b></span>
+     <span>${TXT_DISAPPEARED} <b class="text-emerald-800">${y2}</b></span>
+     <span>${TXT_REGION}: <b class="text-emerald-800">${regionName}</b></span>
+    </div>
+    <p class="legend max-w-md text-lg leading-relaxed">${legendText}</p>
+    <span class="cause-tag inline-block mt-4 font-mono text-[10px] tracking-wider uppercase text-amber-50 bg-emerald-900 px-3 py-1.5 rounded">${causeTag}</span>
+    ${credit ? `<p class="easter-credit mt-4 text-sm italic text-stone-600">${credit}</p>` : ""}
+  `;
+  coordLeft.textContent = `LAT/LONG ${xyToLatLon(px, py)}`;
+  coordRight.textContent = `FOLIO Nº ${randomFolio()}`;
+
+  if (againBtn.hasAttribute('hidden')){
+    againBtn.removeAttribute('hidden');
+    revealBtn.textContent = TXT_REVEAL_AGAIN;
+  }
+}
+
+function generateCity(){
+  const eraKey = pick(ERA_KEYS);
+  const era = ERAS[eraKey];
+
+  const y1 = era.yMin + Math.random() * (era.yMax - era.yMin);
+  const span = era.spanMin + Math.random() * (era.spanMax - era.spanMin);
+  const y2 = y1 + span;
+
+  const cityName = generateName(eraKey);
+  const cause = pickCause(eraKey);
+
+  const region = pick(regionsForEra(eraKey));
+  const point = pickPointInRegion(region, cause.maritime === true);
+
+  showCity({
+    cityName,
+    y1: formatYear(y1, eraKey),
+    y2: formatYear(y2, eraKey),
+    regionName: capitalize(point.name),
+    legendText: cause.text(cityName),
+    causeTag: cause.tag,
+    px: point.x, py: point.y, zoom: point.zoom,
+    caption: `${era.caption} — ${capitalize(point.name)}`
+  });
+}
+
+// Easter egg: Macondo. 1 entre 1000 veces al pulsar el botón, o escribiendo "macondo".
+function generateMacondo(){
+  showCity({
+    cityName: "Macondo",
+    y1: formatYear(1850, "moderno"),
+    y2: formatYear(1928, "moderno"),
+    regionName: "Colombia",
+    legendText: `Un puñado de familias fundó Macondo tras cruzar la sierra en busca del mar, sin encontrarlo jamás. Vivió aislada del mundo durante años, hasta que la llegada de una compañía extranjera dedicada al banano trajo un progreso repentino y una violencia que la región prefirió olvidar. Entre lluvias interminables y un olvido colectivo que fue borrando hasta los nombres de las cosas, el pueblo terminó por desvanecerse por completo, como si nunca hubiera existido.`,
+    causeTag: "Barrida por el viento y el olvido",
+    px: 170, py: 262, zoom: 70,
+    caption: "Mapa mundial · cartografía moderna — Colombia",
+    credit: `Un pequeño homenaje a "Cien años de soledad", de Gabriel García Márquez. Y a <span class="text-amber-600 font-semibold">NotARoomba</span> al crear <span class="text-blue-700 font-semibold">Macondo en Hack Club</span> y hacer una hackaton posible en <span class="text-red-600 font-semibold">Colombia</span>`
+  });
+}
+
+function handleReveal(){
+  if (Math.random() < 1 / 1000){
+    generateMacondo();
+  } else {
+    generateCity();
+  }
+}
+
+revealBtn.addEventListener('click', handleReveal);
+againBtn.addEventListener('click', handleReveal);
+
+
+
+let typedKeys = "";
+window.addEventListener('keydown', (event) => {
+  if (event.key.length === 1){
+    typedKeys = (typedKeys + event.key.toLowerCase()).slice(-7);
+    if (typedKeys === "macondo"){
+      generateMacondo();
+      typedKeys = "";
+    }
+  }
+});
+  </script>
+</body>
+</html>    
