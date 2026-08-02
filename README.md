@@ -8,6 +8,8 @@ Una web que genera nombres de ciudades fantasma inspiradas en mapas históricos 
 
 Tiene diferentes epocas historicas e historias para que nunca se repita la misma ciudad y/o historia
 
+Para usarlo solo descarga el index y ya lo tendras en tu laptop para abrirlo y usar la pagina web
+
 Cuentan las historias de que por ahi existe un easter egg....   quien sabe si existira o donde estara
 
 <img width="338" height="216" alt="image" src="https://github.com/user-attachments/assets/b1866014-3718-4d5b-9a2f-c752f1407217" />
