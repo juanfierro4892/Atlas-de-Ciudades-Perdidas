@@ -26,7 +26,7 @@
       <svg id="worldmap" viewBox="0 0 599 424" xmlns="http://www.w3.org/2000/svg" class="block w-full h-auto">
         <image href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfZynoY-KrW3300_zTGHEoBadi-qERt8BolQF9CWnJYA&s=10" x="0" y="0" width="599" height="424"/>
 
-        <!-- Etiquetas de continentes, siempre visibles -->
+       
         <g class="font-mono text-[12px] fill-stone-700/80">
           <text x="245" y="175" text-anchor="middle">EUROPA</text>
           <text x="490" y="215" text-anchor="middle">ASIA</text>
@@ -35,7 +35,6 @@
           <text x="500" y="345" text-anchor="middle">OCEANÍA</text>
         </g>
 
-        <!-- El marcador (waypoint) que indica dónde estuvo la ciudad -->
         <g id="pinGroup" transform="translate(310,180)">
           <circle r="16" class="fill-red-900/10 stroke-red-900" stroke-width="1.4" style="stroke-dasharray:3 4"/>
           <path d="M-6,-6 L6,6 M-6,6 L6,-6" class="stroke-red-900" stroke-width="2.6" stroke-linecap="round" fill="none"/>
@@ -45,7 +44,6 @@
     </div>
     <p id="mapCaption" class="text-center font-mono text-[10px] tracking-wider uppercase text-stone-600/70 mb-5">Mapa mundial</p>
 
-    <!-- Aquí se escribe el nombre, la fecha y la leyenda de la ciudad generada -->
     <div id="stage" class="min-h-[170px] flex flex-col items-center justify-center text-center py-2 pb-5">
       <p class="italic text-stone-600/70 max-w-xs">El pergamino aún está en blanco. Pulsa el sello para revelar una ciudad perdida.</p>
     </div>
@@ -62,15 +60,6 @@
 </footer>
 
   <script>
-/* ==========================================================================
-   ATLAS DE CIUDADES PERDIDAS
-   Cada vez que pulsas el botón:
-     1. Elige una época de la historia.
-     2. Inventa un nombre de ciudad combinando trozos de palabras.
-     3. Elige un motivo de desaparición (sin repetir el mismo dos veces seguidas).
-     4. Elige un lugar en el mapa: en tierra normalmente, en el agua si el
-        motivo tiene que ver con el mar.
-   ========================================================================== */
 
 const TXT_FOUNDED = "Fundada";
 const TXT_DISAPPEARED = "Desaparecida";
@@ -195,8 +184,7 @@ function pickCause(eraKey){
   return choice;
 }
 
-// Puntos de tierra y de agua, elegidos a mano mirando el mapa (calibrados
-// para la imagen de 599x424 que se usa como fondo).
+
 const CANVAS_W = 599, CANVAS_H = 424;
 
 const REGIONS = [
@@ -246,7 +234,7 @@ function pickPointInRegion(region, wantsWater){
 
 function computeViewBox(px, py, halfHeight){
   const h = halfHeight * 2;
-  const w = h * (CANVAS_W / CANVAS_H); // respeta la proporción real de la imagen
+  const w = h * (CANVAS_W / CANVAS_H); 
   let x0 = px - w / 2;
   let y0 = py - h / 2;
   if (x0 < 0) x0 = 0;
@@ -329,7 +317,7 @@ function generateCity(){
   });
 }
 
-// Easter egg: Macondo. 1 entre 1000 veces al pulsar el botón, o escribiendo "macondo".
+//easter egg
 function generateMacondo(){
   showCity({
     cityName: "Macondo",
